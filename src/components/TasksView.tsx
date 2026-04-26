@@ -5,6 +5,7 @@ import { Plus, Check, Clock, Library, X, AlertCircle, ArrowDownAZ, FileText, Che
 import { formatDate, generateId } from '../utils';
 import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface Props {
   tasks: Task[];
@@ -40,21 +41,33 @@ export default function TasksView({ tasks, setTasks, notes = [], userProfile, na
 
   const handleBulkComplete = async () => {
      for (const id of Array.from(selectedIds)) {
-        await updateDoc(doc(db, 'tasks', id), { completed: true });
+        try {
+          await updateDoc(doc(db, 'tasks', id), { completed: true });
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, `tasks/${id}`);
+        }
      }
      setSelectedIds(new Set());
   };
 
   const handleBulkDelete = async () => {
      for (const id of Array.from(selectedIds)) {
-        await deleteDoc(doc(db, 'tasks', id));
+        try {
+          await deleteDoc(doc(db, 'tasks', id));
+        } catch (e) {
+          handleFirestoreError(e, OperationType.DELETE, `tasks/${id}`);
+        }
      }
      setSelectedIds(new Set());
   };
   
   const handleBulkPriority = async (p: Priority) => {
      for (const id of Array.from(selectedIds)) {
-        await updateDoc(doc(db, 'tasks', id), { priority: p });
+        try {
+          await updateDoc(doc(db, 'tasks', id), { priority: p });
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, `tasks/${id}`);
+        }
      }
      setSelectedIds(new Set());
   };
@@ -81,7 +94,7 @@ export default function TasksView({ tasks, setTasks, notes = [], userProfile, na
     try {
       await setDoc(doc(db, 'tasks', newTask.id), newTask);
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.CREATE, `tasks/${newTask.id}`);
     }
     
     setNewTitle('');
@@ -109,11 +122,15 @@ export default function TasksView({ tasks, setTasks, notes = [], userProfile, na
       finalXP = newXP - xpNeeded;
     }
     
-    await updateDoc(doc(db, 'users', auth.currentUser.email!), {
-      xp: finalXP,
-      level: nextLevel,
-      coins: (userProfile?.coins || 0) + 10 // Award some coins too
-    });
+    try {
+      await updateDoc(doc(db, 'users', auth.currentUser.email!), {
+        xp: finalXP,
+        level: nextLevel,
+        coins: (userProfile?.coins || 0) + 10 // Award some coins too
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `users/${auth.currentUser.email}`);
+    }
   };
 
   const toggleTask = async (task: Task) => {
@@ -127,7 +144,7 @@ export default function TasksView({ tasks, setTasks, notes = [], userProfile, na
          await addXP(xpEarned);
       }
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
     }
   };
 
@@ -135,7 +152,7 @@ export default function TasksView({ tasks, setTasks, notes = [], userProfile, na
     try {
       await deleteDoc(doc(db, 'tasks', id));
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.DELETE, `tasks/${id}`);
     }
   };
 
@@ -428,13 +445,21 @@ const TaskItem: React.FC<{ task: Task; onToggle: () => void; onDelete: () => voi
 
   const saveDesc = async () => {
     if (desc !== task.description) {
-       await updateDoc(doc(db, 'tasks', task.id), { description: desc });
+       try {
+         await updateDoc(doc(db, 'tasks', task.id), { description: desc });
+       } catch (e) {
+         handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+       }
     }
   };
 
   const saveReminder = async () => {
       if (reminderTime !== task.reminderTime) {
-         await updateDoc(doc(db, 'tasks', task.id), { reminderTime: reminderTime || null });
+         try {
+           await updateDoc(doc(db, 'tasks', task.id), { reminderTime: reminderTime || null });
+         } catch (e) {
+           handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+         }
       }
   };
 
@@ -445,24 +470,40 @@ const TaskItem: React.FC<{ task: Task; onToggle: () => void; onDelete: () => voi
     if (!input.value.trim()) return;
 
     const newSubtasks = [...(task.subtasks || []), { id: generateId(), title: input.value, completed: false }];
-    await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+    try {
+      await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+    }
     input.value = '';
   };
 
   const updateSubtaskTitle = async (subtaskId: string, newTitle: string) => {
      if (!newTitle.trim()) return;
      const newSubtasks = (task.subtasks || []).map(st => st.id === subtaskId ? { ...st, title: newTitle } : st);
-     await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+     try {
+       await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+     } catch (e) {
+       handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+     }
   };
 
   const toggleSubtask = async (subtaskId: string) => {
     const newSubtasks = (task.subtasks || []).map(st => st.id === subtaskId ? { ...st, completed: !st.completed } : st);
-    await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+    try {
+      await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+    }
   };
 
   const removeSubtask = async (subtaskId: string) => {
      const newSubtasks = (task.subtasks || []).filter(st => st.id !== subtaskId);
-     await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+     try {
+       await updateDoc(doc(db, 'tasks', task.id), { subtasks: newSubtasks });
+     } catch (e) {
+       handleFirestoreError(e, OperationType.UPDATE, `tasks/${task.id}`);
+     }
   }
 
   const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0));

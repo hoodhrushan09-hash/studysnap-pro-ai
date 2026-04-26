@@ -47,49 +47,40 @@ export default function DashboardView({ tasks, notes, userProfile, navigate }: P
   const [aiPlan, setAiPlan] = useState<string | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
 
-  const fetchStudyPlan = () => {
+  const fetchStudyPlan = async () => {
     setLoadingPlan(true);
     setAiPlan(null);
     
-    setTimeout(() => {
+    try {
       if (tasks.length === 0) {
         setAiPlan("You have no tasks! Enjoy your free time or add some tasks to get a study plan.");
         setLoadingPlan(false);
         return;
       }
 
-      let planStr = "## 🎯 Today's Study Blueprint\n\n";
-      
-      const urgent = tasks.filter(t => !t.completed && (t.priority === 'high' || (t.dueDate && new Date(t.dueDate).toDateString() === new Date().toDateString())));
-      if (urgent.length > 0) {
-         planStr += "### 🔥 High Priority / Due Today\n";
-         urgent.slice(0, 3).forEach(t => planStr += `- **${t.title}** (${t.subject})\n`);
-         planStr += "\n";
+      const response = await fetch('/api/ai/study-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          tasks: tasks.filter(t => !t.completed), 
+          userProfile,
+          notesCount: notes.length
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch AI study plan');
       }
 
-      const medium = tasks.filter(t => !t.completed && t.priority === 'medium' && !urgent.includes(t));
-      if (medium.length > 0) {
-         planStr += "### 🟡 Medium Priority\n";
-         medium.slice(0, 3).forEach(t => planStr += `- **${t.title}** (${t.subject})\n`);
-         planStr += "\n";
-      }
-      
-      const easyTasks = tasks.filter(t => !t.completed && t.difficulty === 'easy' && !urgent.includes(t) && !medium.includes(t));
-      if (easyTasks.length > 0) {
-         planStr += "### 🟢 Quick Wins (Warm Up)\n";
-         easyTasks.slice(0, 2).forEach(t => planStr += `- ${t.title} (${t.subject})\n`);
-         planStr += "\n";
-      }
-
-      if (urgent.length === 0 && medium.length === 0 && easyTasks.length === 0) {
-         planStr += "All caught up! Why not review notes for **" + strongSubject + "**?\n";
-      }
-
-      planStr += "\n*Pro Tip: Use the Focus chamber for 25 minutes on your hardest task!*";
-      
-      setAiPlan(planStr);
+      const data = await response.json();
+      setAiPlan(data.result);
+    } catch (e: any) {
+      console.error(e);
+      setAiPlan(`### ⚠️ AI Error\n${e.message || 'Could not connect to AI services. Please ensure your Gemini API key is configured.'}`);
+    } finally {
       setLoadingPlan(false);
-    }, 600); // Simulate calculation time
+    }
   };
 
   return (

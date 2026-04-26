@@ -23,7 +23,8 @@ import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import { auth, db, signOut } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, where, doc, setDoc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, setDoc, getDoc, getDocs, getDocFromServer } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from './lib/firestoreUtils';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -38,6 +39,17 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration.");
+        }
+      }
+    }
+    testConnection();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
@@ -83,8 +95,7 @@ export default function App() {
       });
       setTasks(t.sort((a,b) => b.createdAt - a.createdAt));
     }, (error) => {
-       console.error(error);
-       alert("Error fetching tasks: " + JSON.stringify(error));
+       handleFirestoreError(error, OperationType.GET, 'tasks');
     });
 
     const notesQuery = query(collection(db, 'notes'), where('userId', '==', user.email));
@@ -95,8 +106,7 @@ export default function App() {
       });
       setNotes(n.sort((a,b) => b.updatedAt - a.updatedAt));
     }, (error) => {
-       console.error(error);
-       alert("Error fetching notes: " + JSON.stringify(error));
+       handleFirestoreError(error, OperationType.GET, 'notes');
     });
 
     const userRef = doc(db, 'users', user.email!);
@@ -108,6 +118,8 @@ export default function App() {
           setProfilePicture(data.photoBase64);
         }
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.email}`);
     });
 
     return () => {

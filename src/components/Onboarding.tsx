@@ -14,6 +14,7 @@ import {
 import { UserProfile } from '../types';
 import { auth, db, signOut } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface Props {
   user: any;
@@ -72,8 +73,7 @@ export default function Onboarding({ user, onComplete }: Props) {
       await setDoc(doc(db, 'users', user.email!), profile);
       onComplete(profile);
     } catch (e) {
-      console.error(e);
-      alert('Error saving profile');
+      handleFirestoreError(e, OperationType.WRITE, `users/${user.email}`);
     } finally {
       setLoading(false);
     }

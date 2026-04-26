@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Note, Task } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, Plus, X, Tag, Link, Filter, Eye, Edit3, Zap } from 'lucide-react';
+import { FileText, Plus, X, Tag, Link, Filter, Eye, Edit3, Zap, Loader2 } from 'lucide-react';
 import { formatDate, generateId } from '../utils';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 import Markdown from 'react-markdown';
 
 interface Props {
@@ -29,7 +30,7 @@ export default function NotesView({ notes, setNotes, tasks }: Props) {
         setSelectedNote(null);
         setIsAdding(false);
       } catch (e) {
-        console.error(e);
+        handleFirestoreError(e, OperationType.UPDATE, `notes/${selectedNote.id}`);
       }
     } else {
       const newNote: Note = {
@@ -47,7 +48,7 @@ export default function NotesView({ notes, setNotes, tasks }: Props) {
         await setDoc(doc(db, 'notes', newNote.id), newNote);
         setIsAdding(false);
       } catch (e) {
-        console.error(e);
+        handleFirestoreError(e, OperationType.CREATE, `notes/${newNote.id}`);
       }
     }
   };
@@ -57,7 +58,7 @@ export default function NotesView({ notes, setNotes, tasks }: Props) {
         await deleteDoc(doc(db, 'notes', id));
         setSelectedNote(null);
       } catch (e) {
-        console.error(e);
+        handleFirestoreError(e, OperationType.DELETE, `notes/${id}`);
       }
   };
 
@@ -77,7 +78,7 @@ export default function NotesView({ notes, setNotes, tasks }: Props) {
     try {
       await setDoc(doc(db, 'notes', note.id), { pinned: !note.pinned }, { merge: true });
     } catch (e) {
-      console.error(e);
+      handleFirestoreError(e, OperationType.UPDATE, `notes/${note.id}`);
     }
   };
 
@@ -204,6 +205,7 @@ function NoteEditor({
   const [isReadingMode, setIsReadingMode] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [isBeautifying, setIsBeautifying] = useState(false);
   
   const filteredTasks = useMemo(() => {
      return tasks.filter(t => !subject || t.subject.toLowerCase() === subject.toLowerCase());
@@ -227,7 +229,9 @@ function NoteEditor({
        try {
          await setDoc(doc(db, 'tasks', newTaskId), newTask);
          finalTaskId = newTaskId;
-       } catch (e) { console.error(e); }
+       } catch (e) { 
+         handleFirestoreError(e, OperationType.CREATE, `tasks/${newTaskId}`);
+       }
     }
 
     onSave({
@@ -251,6 +255,29 @@ function NoteEditor({
     setTimeout(() => {
        window.print();
     }, 500);
+  };
+
+  const handleBeautify = async () => {
+    if (!content.trim()) return;
+    setIsBeautifying(true);
+    try {
+      const response = await fetch('/api/ai/clean-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to beautify note');
+      }
+      const data = await response.json();
+      setContent(data.cleaned);
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error occurred while beautifying note.');
+    } finally {
+      setIsBeautifying(false);
+    }
   };
 
   if (isReadingMode) {
@@ -397,6 +424,14 @@ function NoteEditor({
                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
              >
                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg> Print
+             </button>
+             <button
+               onClick={handleBeautify}
+               disabled={isBeautifying}
+               className="flex items-center gap-1.5 text-xs text-yellow-400 hover:text-yellow-300 transition-colors disabled:opacity-50"
+             >
+               {isBeautifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />} 
+               AI Beautify
              </button>
              <button
                onClick={() => setIsReadingMode(true)}
