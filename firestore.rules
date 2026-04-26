@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com' || request.auth.token.firebase.sign_in_provider == 'apple.com');
+    }
+
+    function isOwner(email) {
+      return isSignedIn() && request.auth.token.email == email;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+@?[a-zA-Z0-9_\\-\\.]*$');
+    }
+
+    match /users/{email} {
+      function isValidUserProfile(data) {
+        return (
+          data.email == email &&
+          data.email == request.auth.token.email &&
+          data.uid is string &&
+          data.displayName is string && data.displayName.size() <= 100 &&
+          data.grade is string && data.grade.size() <= 50 &&
+          data.onboarded == true &&
+          data.createdAt is number &&
+          (!('ageGroup' in data) || data.ageGroup == null || (data.ageGroup is string && data.ageGroup.size() <= 50)) &&
+          (!('bio' in data) || data.bio == null || (data.bio is string && data.bio.size() <= 500)) &&
+          (!('photoBase64' in data) || data.photoBase64 == null || (data.photoBase64 is string && data.photoBase64.size() <= 1000000)) &&
+          (!('xp' in data) || data.xp is number) &&
+          (!('level' in data) || data.level is number) &&
+          (!('coins' in data) || data.coins is number) &&
+          (!('streak' in data) || data.streak is number)
+        );
+      }
+
+      allow get: if isOwner(email);
+      allow create: if isOwner(email) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(email) 
+                    && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'grade', 'ageGroup', 'bio', 'photoBase64', 'xp', 'level', 'coins', 'streak', 'updatedAt', 'onboarded']))
+                    // Ensure email and createdAt are immutable
+                    && request.resource.data.email == resource.data.email
+                    && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /tasks/{taskId} {
+      function isValidTask(data) {
+        return data.userId == request.auth.token.email &&
+               data.title is string && data.title.size() <= 200 &&
+               data.subject is string && data.subject.size() <= 100 &&
+               data.completed is bool &&
+               data.createdAt is number;
+      }
+
+      allow list: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow create: if isSignedIn() && isValidTask(request.resource.data);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email &&
+                    isValidTask(request.resource.data) &&
+                    request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+    }
+
+    match /notes/{noteId} {
+      function isValidNote(data) {
+        return data.userId == request.auth.token.email &&
+               data.title is string && data.title.size() <= 200 &&
+               data.subject is string && data.subject.size() <= 100 &&
+               data.updatedAt is number;
+      }
+
+      allow list: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow create: if isSignedIn() && isValidNote(request.resource.data);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email &&
+                    isValidNote(request.resource.data) &&
+                    request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+    }
+  }
+}

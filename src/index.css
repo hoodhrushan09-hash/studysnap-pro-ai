@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased font-sans;
+  }
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.markdown-preview h1 {
+  @apply text-2xl font-bold mb-4 mt-6 text-white;
+}
+
+.markdown-preview h2 {
+  @apply text-xl font-bold mb-3 mt-5 text-white;
+}
+
+.markdown-preview h3 {
+  @apply text-lg font-semibold mb-2 mt-4 text-white;
+}
+
+.markdown-preview p {
+  @apply mb-4 leading-relaxed;
+}
+
+.markdown-preview ul {
+  @apply list-disc pl-6 mb-4;
+}
+
+.markdown-preview ol {
+  @apply list-decimal pl-6 mb-4;
+}
+
+.markdown-preview li {
+  @apply mb-1;
+}
+
+.markdown-preview a {
+  @apply text-indigo-400 hover:text-indigo-300 underline underline-offset-2;
+}
+
+.markdown-preview blockquote {
+  @apply border-l-4 border-indigo-500 pl-4 py-1 my-4 bg-slate-800/30 rounded-r-lg italic text-slate-300;
+}
+
+.markdown-preview code {
+  @apply bg-slate-800 px-1.5 py-0.5 rounded text-sm font-mono text-indigo-300;
+}
+
+.markdown-preview pre {
+  @apply bg-slate-900 p-4 rounded-xl overflow-x-auto my-4 border border-slate-800;
+}
+
+.markdown-preview pre code {
+  @apply bg-transparent p-0 text-slate-300;
+}
+
+

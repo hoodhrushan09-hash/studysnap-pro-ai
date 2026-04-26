@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A study task.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "subject": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "priority": { "type": "string" },
+        "reminderTime": { "type": "string" },
+        "subtasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "required": ["userId", "title", "subject", "completed", "createdAt"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "A study note.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "subject": { "type": "string" },
+        "taskId": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "title", "subject", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile and onboarding data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoBase64": { "type": "string" },
+        "grade": { "type": "string" },
+        "ageGroup": { "type": "string" },
+        "bio": { "type": "string" },
+        "provider": { "type": "string" },
+        "onboarded": { "type": "boolean" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "coins": { "type": "number" },
+        "streak": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "displayName", "onboarded", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile data."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Tasks created by users."
+    },
+    "/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/Note" },
+      "description": "Notes created by users."
+    }
+  }
+}
